@@ -1,0 +1,60 @@
+﻿@model Wordle.Models.WordModel
+
+@{
+	ViewData["Title"] = "Details";
+}
+
+<div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
+	<table id="wordleTable" class="table text-center align-middle w-auto">
+		@for (int r = 1; r <= 6; r++)
+		{
+			<tr>
+				@for (int c = 1; c <= 5; c++)
+				{
+					<td class="border border-dark fw-bold fs-3" style="width: 60px; height: 60px;"></td>
+				}
+			</tr>
+		}
+	</table>
+</div>
+
+<input type="text" id="guessInput" maxlength="5" class="form-control w-25 mx-auto d-block text-center fs-5" placeholder="Enter your guess" />
+
+
+<script>
+		const input = document.getElementById('guessInput');
+	const table = document.getElementById('wordleTable');
+	let currentRow = 0;
+
+	input.addEventListener('keydown', function (e) {
+		if (e.key === 'Enter') {
+			const word = input.value.trim().toUpperCase();
+			if (word.length === 5 && currentRow < 6) {
+				const row = table.rows[currentRow];
+				for (let i = 0; i < 5; i++) {
+					row.cells[i].textContent = word[i];
+					const randomColor = Math.random();
+					if (randomColor < 0.33) {
+						row.cells[i].style.backgroundColor = 'green';
+					} else if (randomColor < 0.66) {
+						row.cells[i].style.backgroundColor = 'yellow';
+					} else {
+						row.cells[i].style.backgroundColor = 'lightgray';
+					}
+				}
+				currentRow++;
+				input.value = '';
+				if (currentRow === 6) {
+					input.disabled = true;
+					alert('Game Over! You have used all your attempts.');
+				}
+				} else {
+					alert('Please enter a valid 5-letter word.');
+				}
+		}
+	});
+</script>
+
+
+
+

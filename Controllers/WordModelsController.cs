@@ -157,14 +157,23 @@ namespace Wordle.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        public IActionResult WordleGame()
+        public async Task<IActionResult> WordleGame()
         {
-            return View();
+            var randomWord = await Word();
+            return View(randomWord);
         }
 
         private bool WordModelExists(int id)
         {
             return _context.WordModel.Any(e => e.Id == id);
+        }
+
+        public async Task<WordModel?> Word()
+        {
+            // Get a random word from the database
+            return await _context.WordModel
+                .OrderBy(w => Guid.NewGuid())
+                .FirstOrDefaultAsync();
         }
     }
 }

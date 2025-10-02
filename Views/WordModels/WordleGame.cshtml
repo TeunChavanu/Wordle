@@ -4,6 +4,11 @@
 	ViewData["Title"] = "Details";
 }
 
+@if (Model != null)
+{
+	<h1 id="word" class="invisible text-center">Het word was @Model.Letters</h1>
+}
+
 <div class="d-flex justify-content-center align-items-center" style="min-height: 60vh;">
 	<table id="wordleTable" class="table text-center align-middle w-auto">
 		@for (int r = 1; r <= 6; r++)
@@ -18,42 +23,223 @@
 	</table>
 </div>
 
-<input type="text" id="guessInput" maxlength="5" class="form-control w-25 mx-auto d-block text-center fs-5" placeholder="Enter your guess" />
+<div id="keyboard" class="keyboard" role="application" aria-label="On-screen keyboard">
+    <div class="keyboard-row row-1">
+        <button class="key" data-key="Q">Q</button>
+        <button class="key" data-key="W">W</button>
+        <button class="key" data-key="E">E</button>
+        <button class="key" data-key="R">R</button>
+        <button class="key" data-key="T">T</button>
+        <button class="key" data-key="Y">Y</button>
+        <button class="key" data-key="U">U</button>
+        <button class="key" data-key="I">I</button>
+        <button class="key" data-key="O">O</button>
+        <button class="key" data-key="P">P</button>
+    </div>
 
+    <div class="keyboard-row row-2">
+        <button class="key" data-key="A">A</button>
+        <button class="key" data-key="S">S</button>
+        <button class="key" data-key="D">D</button>
+        <button class="key" data-key="F">F</button>
+        <button class="key" data-key="G">G</button>
+        <button class="key" data-key="H">H</button>
+        <button class="key" data-key="J">J</button>
+        <button class="key" data-key="K">K</button>
+        <button class="key" data-key="L">L</button>
+    </div>
 
+    <div class="keyboard-row row-3">
+        <button class="key wide" data-key="Enter">ENTER</button>
+        <button class="key" data-key="Z">Z</button>
+        <button class="key" data-key="X">X</button>
+        <button class="key" data-key="C">C</button>
+        <button class="key" data-key="V">V</button>
+        <button class="key" data-key="B">B</button>
+        <button class="key" data-key="N">N</button>
+        <button class="key" data-key="M">M</button>
+        <button class="key wide" data-key="Backspace">⌫</button>
+    </div>
+</div>
+
+@* <input type="text" id="guessInput" maxlength="5" class="form-control w-25 mx-auto d-block text-center fs-5" placeholder="Enter your guess" /> *@
+
+<button id="again" onclick="window.location.reload()" class="invisible form-control w-25 mx-auto d-block text-center fs-5 mt-5">Nieuw spel </button>
+
+<span id="inputError" class="text-danger text-center d-block"></span>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script>
-		const input = document.getElementById('guessInput');
-	const table = document.getElementById('wordleTable');
-	let currentRow = 0;
+        const correctWord = '@Model.Letters.ToUpper()';
+    const table = document.getElementById('wordleTable');
+    const again = document.getElementById('again');
+    const wordDisplay = document.getElementById('word');
+    const errorSpan = document.getElementById('inputError');
 
-	input.addEventListener('keydown', function (e) {
-		if (e.key === 'Enter') {
-			const word = input.value.trim().toUpperCase();
-			if (word.length === 5 && currentRow < 6) {
-				const row = table.rows[currentRow];
-				for (let i = 0; i < 5; i++) {
-					row.cells[i].textContent = word[i];
-					const randomColor = Math.random();
-					if (randomColor < 0.33) {
-						row.cells[i].style.backgroundColor = 'green';
-					} else if (randomColor < 0.66) {
-						row.cells[i].style.backgroundColor = 'yellow';
-					} else {
-						row.cells[i].style.backgroundColor = 'lightgray';
-					}
-				}
-				currentRow++;
-				input.value = '';
-				if (currentRow === 6) {
-					input.disabled = true;
-					alert('Game Over! You have used all your attempts.');
-				}
-				} else {
-					alert('Please enter a valid 5-letter word.');
-				}
-		}
-	});
+    let currentRow = 0;
+    let currentCol = 0;
+    let guesses = Array(6).fill("").map(() => Array(5).fill(""));
+
+    // Virtueel toetsenbord
+    document.querySelectorAll("#keyboard button").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const key = btn.getAttribute("data-key");
+            handleKeyPress(key);
+        });
+    });
+
+    // Fysiek toetsenbord
+    document.addEventListener("keydown", (e) => {
+        const key = e.key.toUpperCase();
+        if (key === "ENTER") handleKeyPress("Enter");
+        else if (key === "BACKSPACE") handleKeyPress("Backspace");
+        else if (/^[A-Z]$/.test(key)) handleKeyPress(key);
+    });
+
+    // Handle keypress (virtueel of fysiek)
+    function handleKeyPress(key) {
+        if (key === "Enter") {
+            if (currentCol === 5) checkWord();
+            else errorSpan.textContent = "Vul eerst 5 letters in.";
+        } else if (key === "Backspace") {
+            if (currentCol > 0) {
+                currentCol--;
+                guesses[currentRow][currentCol] = "";
+                table.rows[currentRow].cells[currentCol].textContent = "";
+            }
+        } else {
+            if (currentCol < 5 && /^[A-Z]$/.test(key)) {
+                guesses[currentRow][currentCol] = key;
+                table.rows[currentRow].cells[currentCol].textContent = key;
+                currentCol++;
+            }
+        }
+    }
+
+    // Kleur cel + toetsenbord
+    function colorKey(letter, status) {
+        const button = document.querySelector(`#keyboard button[data-key='${letter}']`);
+        if (!button) return;
+
+        const currentColor = button.dataset.color;
+
+        if (status === "green") {
+            button.style.backgroundColor = "#6aaa64";
+            button.style.color = "white";
+            button.dataset.color = "green";
+        } else if (status === "yellow" && currentColor !== "green") {
+            button.style.backgroundColor = "#c9b458";
+            button.style.color = "white";
+            button.dataset.color = "yellow";
+        } else if (status === "gray" && !currentColor) {
+            button.style.backgroundColor = "#787c7e";
+            button.style.color = "white";
+            button.dataset.color = "gray";
+        }
+    }
+
+    // Check woord
+    function checkWord() {
+        const word = guesses[currentRow].join("");
+
+        for (let i = 0; i < 5; i++) {
+            const cell = table.rows[currentRow].cells[i];
+            const letter = word[i];
+
+            if (letter === correctWord[i]) {
+                cell.style.backgroundColor = "green";
+                colorKey(letter, "green");
+            } else if (correctWord.includes(letter)) {
+                cell.style.backgroundColor = "yellow";
+                colorKey(letter, "yellow");
+            } else {
+                cell.style.backgroundColor = "lightgray";
+                colorKey(letter, "gray");
+            }
+        }
+
+        if (word === correctWord) {
+            again.classList.remove("invisible");
+            wordDisplay.classList.remove("invisible");
+            confetti({ particleCount: 1000, spread: 1000, origin: { y: 0.6 } });
+            return;
+        }
+
+        currentRow++;
+        currentCol = 0;
+
+        if (currentRow === 6) {
+            again.classList.remove("invisible");
+            wordDisplay.classList.remove("invisible");
+        }
+    }
 </script>
+
+<style>
+    .keyboard {
+        max-width: 760px;
+        margin: 24px auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 0 12px;
+        box-sizing: border-box;
+    }
+
+    /* elke rij is een horizontale grid */
+    .keyboard-row {
+        display: grid;
+        grid-auto-flow: column;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    /* offsets om het Wordle-gevoel te krijgen */
+    .row-2 {
+        transform: translateX(28px); /* naar binnen geschoven */
+    }
+
+    .row-3 {
+        transform: translateX(6px); /* kleine verschuiving */
+    }
+
+    /* keys */
+    .key {
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        background: #9e9e9e; /* standaardgrijs */
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 18px;
+        border: none;
+        box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        cursor: pointer;
+        letter-spacing: 1px;
+        transition: transform .06s ease, box-shadow .06s ease, background-color .12s ease;
+    }
+
+        /* hover / active */
+        .key:hover {
+            transform: translateY(-2px);
+        }
+
+        .key:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+        }
+
+        /* brede knoppen Enter / Backspace */
+        .key.wide {
+            width: calc(64px * 2 + 12px); /* breedte van 2 keys + gap */
+            font-size: 14px;
+            padding: 0 6px;
+        }  
+</style>
 
 
 
